@@ -5,16 +5,238 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js"></script>
+
     <title>Youtube</title>
 </head>
 <body>
-    <div class="topnav">
-            <div class="account-Image">
-                
-            </div>
-    </div>
-    <div class="sidenav">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Navbar</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+      
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav mr-auto">
+            <li class="nav-item active">
+              <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#">Link</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                Dropdown
+              </a>
+              <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                <a class="dropdown-item" href="#">Action</a>
+                <a class="dropdown-item" href="#">Another action</a>
+                <div class="dropdown-divider"></div>
+                <a class="dropdown-item" href="#">Something else here</a>
+              </div>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link disabled" href="#">Disabled</a>
+            </li>
+          </ul>
+          <form class="form-inline my-2 my-lg-0">
+            <input class="form-control mr-sm-2" type="search" placeholder="Search" aria-label="Search">
+            <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+          </form>
+        </div>
+      </nav>
 
-    </div>
+
+   
+<canvas id="gameCanvas"></canvas>
+<script src="https://raw.githubusercontent.com/toji/gl-matrix/master/dist/gl-matrix.js"></script>
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const gl = canvas.getContext('webgl');
+
+    if (!gl) {
+        console.error('WebGL not supported, falling back on experimental-webgl');
+        gl = canvas.getContext('experimental-webgl');
+    }
+
+    if (!gl) {
+        alert('Your browser does not support WebGL');
+    }
+
+    // Set the canvas size to match the window size
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Set up a simple camera
+    const camera = {
+        x: 0,
+        y: 0,
+        z: -5,
+        pitch: 0,
+        yaw: 0,
+        speed: 0.05 // Adjust the speed to your liking
+    };
+
+    // Keyboard input handling
+    const keys = {};
+
+    window.addEventListener('keydown', (event) => {
+        keys[event.key] = true;
+    });
+
+    window.addEventListener('keyup', (event) => {
+        keys[event.key] = false;
+    });
+
+    // Define the vertices, indices, and colors for a 3D box
+    const vertices = [
+        -1, -1, -1,
+        1, -1, -1,
+        1, 1, -1,
+        -1, 1, -1,
+        -1, -1, 1,
+        1, -1, 1,
+        1, 1, 1,
+        -1, 1, 1
+    ];
+
+    const indices = [
+        0, 1, 2, 0, 2, 3,
+        4, 5, 6, 4, 6, 7,
+        0, 4, 7, 0, 7, 3,
+        1, 5, 6, 1, 6, 2,
+        0, 1, 5, 0, 5, 4,
+        2, 3, 7, 2, 7, 6
+    ];
+
+    const colors = [
+        1, 0, 0,
+        0, 1, 0,
+        0, 0, 1,
+        1, 1, 0,
+        1, 0, 1,
+        0, 1, 1,
+        0.5, 0.5, 0.5,
+        0.8, 0.8, 0.8
+    ];
+
+    const vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+    const indexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+    const colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+    // Define the vertex shader
+    const vsSource = `
+        attribute vec4 aVertexPosition;
+        attribute vec4 aVertexColor;
+
+        uniform mat4 uModelViewMatrix;
+        uniform mat4 uProjectionMatrix;
+
+        varying lowp vec4 vColor;
+
+        void main(void) {
+            gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+            vColor = aVertexColor;
+        }
+    `;
+
+    // Define the fragment shader
+    const fsSource = `
+        varying lowp vec4 vColor;
+
+        void main(void) {
+            gl_FragColor = vColor;
+        }
+    `;
+
+    // Compile and link the shaders
+    const vs = gl.createShader(gl.VERTEX_SHADER);
+    gl.shaderSource(vs, vsSource);
+    gl.compileShader(vs);
+
+    if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
+        console.error('Vertex shader compilation error:', gl.getShaderInfoLog(vs));
+    }
+
+    const fs = gl.createShader(gl.FRAGMENT_SHADER);
+    gl.shaderSource(fs, fsSource);
+    gl.compileShader(fs);
+
+    if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+        console.error('Fragment shader compilation error:', gl.getShaderInfoLog(fs));
+    }
+
+    const shaderProgram = gl.createProgram();
+    gl.attachShader(shaderProgram, vs);
+    gl.attachShader(shaderProgram, fs);
+    gl.linkProgram(shaderProgram);
+    gl.useProgram(shaderProgram);
+
+    if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+        console.error('Unable to initialize the shader program:', gl.getProgramInfoLog(shaderProgram));
+    }
+
+    // Get attribute and uniform locations
+    const vertexPosition = gl.getAttribLocation(shaderProgram, 'aVertexPosition');
+    const vertexColor = gl.getAttribLocation(shaderProgram, 'aVertexColor');
+    const modelViewMatrixLoc = gl.getUniformLocation(shaderProgram, 'uModelViewMatrix');
+    const projectionMatrixLoc = gl.getUniformLocation(shaderProgram, 'uProjectionMatrix');
+
+    // Set up the model, view, and projection matrices
+    const modelViewMatrix = mat4.create();
+    const projectionMatrix = mat4.create();
+
+    // Rendering loop
+    function render() {
+        // Clear the canvas
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        // Update camera position based on keyboard input
+        if (keys['w']) {
+            camera.z += camera.speed;
+        }
+        if (keys['s']) {
+            camera.z -= camera.speed;
+        }
+        if (keys['a']) {
+            camera.x += camera.speed;
+        }
+        if (keys['d']) {
+            camera.x -= camera.speed;
+        }
+
+        // Calculate and set the model-view and projection matrices here
+
+        // Bind vertex, index, and color buffers
+
+        // Set attributes and uniforms
+
+        // Draw the box using gl.drawElements
+
+        // Request the next frame
+        requestAnimationFrame(render);
+    }
+
+    // Start the rendering loop
+    render();
+
+</script>
+
+      
+
+
 </body>
 </html>
